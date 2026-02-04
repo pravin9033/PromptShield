@@ -111,6 +111,8 @@ Available packs (examples):
 - `attacks/packs/role_confusion.yaml`
 - `attacks/packs/exfiltration.yaml`
 - `attacks/packs/benign.yaml`
+- `attacks/packs/hard_multiturn.yaml`
+- `attacks/packs/system_override.yaml`
 
 Validate pack metadata with the schema:
 
@@ -129,6 +131,38 @@ app.add_middleware(
     PromptShieldMiddleware,
     block_threshold=70
 )
+```
+
+## Agent sandbox (Phase 3 preview)
+
+```python
+from promptshield.sandbox import (
+    ActionType,
+    AllowListPolicy,
+    DenyListPolicy,
+    PolicyEngine,
+    wrap_tool,
+)
+
+policies = [
+    AllowListPolicy(
+        name=\"tool-allowlist\",
+        action_types=[ActionType.TOOL_CALL],
+        allowed_names=[\"search\", \"summarize\"],
+    ),
+    DenyListPolicy(
+        name=\"filesystem-deny\",
+        action_types=[ActionType.FILE_READ, ActionType.FILE_WRITE],
+        denied_resources=[\"/etc/*\", \"/var/*\"],
+    ),
+]
+
+engine = PolicyEngine(policies)
+
+def search(query: str) -> str:
+    return f\"Searching {query}\"
+
+safe_search = wrap_tool(\"search\", search, engine)
 ```
 
 ## Risk scoring
@@ -172,6 +206,7 @@ Environment overrides:
 - `promptshield/` core package
 - `promptshield/redteam/` attack packs + reporting
 - `promptshield/data/patterns/` detector pattern data
+- `promptshield/sandbox/` agent policy engine
 - `attacks/` curated test prompts
 - `examples/` reference integrations
 
