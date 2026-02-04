@@ -147,13 +147,13 @@ Validate pack metadata with the schema:
 promptshield redteam lint attacks/packs/starter.yaml
 ```
 
-## Model scanning (Phase 5)
+## Model scanning 
 
 ```bash
 promptshield modelscan run attacks/packs/starter.yaml --adapter echo
 ```
 
-## Dashboard (Phase 5)
+## Dashboard 
 
 ```bash
 python -m pip install promptshield[dashboard]
@@ -173,7 +173,7 @@ app.add_middleware(
 )
 ```
 
-## Agent sandbox (Phase 3 preview)
+## Agent sandbox (preview)
 
 ```python
 from promptshield.sandbox import (
