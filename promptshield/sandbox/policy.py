@@ -28,10 +28,35 @@ class Action:
     params: Dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass
+class SandboxSession:
+    max_tool_calls: Optional[int] = None
+    max_network_calls: Optional[int] = None
+    max_total_actions: Optional[int] = None
+    usage: Dict[ActionType, int] = field(default_factory=dict)
+    total_actions: int = 0
+
+    def can_take(self, action_type: ActionType) -> bool:
+        if self.max_total_actions is not None and self.total_actions + 1 > self.max_total_actions:
+            return False
+
+        if action_type == ActionType.TOOL_CALL and self.max_tool_calls is not None:
+            return self.usage.get(action_type, 0) + 1 <= self.max_tool_calls
+        if action_type == ActionType.NETWORK and self.max_network_calls is not None:
+            return self.usage.get(action_type, 0) + 1 <= self.max_network_calls
+
+        return True
+
+    def record(self, action_type: ActionType) -> None:
+        self.total_actions += 1
+        self.usage[action_type] = self.usage.get(action_type, 0) + 1
+
+
 @dataclass(frozen=True)
 class SandboxContext:
     user_id: Optional[str] = None
     session_id: Optional[str] = None
+    session: Optional[SandboxSession] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -111,6 +136,22 @@ class DenyListPolicy(Policy):
         return None
 
 
+class BudgetPolicy(Policy):
+    """Enforce per-session budgets (tool, network, total actions)."""
+
+    def __init__(self, name: str = "budget") -> None:
+        self.name = name
+
+    def evaluate(self, action: Action, context: SandboxContext) -> Optional[Decision]:
+        if context.session is None:
+            return None
+
+        if not context.session.can_take(action.action_type):
+            return Decision(False, "budget exceeded", self.name)
+
+        return None
+
+
 class PolicyEngine:
     """Evaluate actions against a list of policies."""
 
@@ -141,6 +182,8 @@ class PolicyEngine:
         decision = self.evaluate(action, context)
         if not decision.allowed:
             raise SandboxViolation(f"{decision.policy}: {decision.reason}")
+        if context and context.session:
+            context.session.record(action.action_type)
         return decision
 
 

@@ -29,12 +29,17 @@ dependencies = []
 cli = ["typer>=0.12.0"]
 redteam = ["PyYAML>=6.0", "jsonschema>=4.21.0"]
 middleware = ["starlette>=0.37.0"]
+compliance = []
+dashboard = ["fastapi>=0.111.0", "uvicorn>=0.29.0"]
+modelscan = ["PyYAML>=6.0", "jsonschema>=4.21.0"]
 test = ["pytest>=7.4", "pytest-cov>=4.1"]
 all = [
   "typer>=0.12.0",
   "PyYAML>=6.0",
   "jsonschema>=4.21.0",
-  "starlette>=0.37.0"
+  "starlette>=0.37.0",
+  "fastapi>=0.111.0",
+  "uvicorn>=0.29.0"
 ]
 
 [project.urls]
@@ -54,12 +59,15 @@ packages = [
   "promptshield",
   "promptshield.data",
   "promptshield.data.patterns",
+  "promptshield.compliance",
+  "promptshield.dashboard",
   "promptshield.engine",
   "promptshield.detectors",
   "promptshield.sandbox",
   "promptshield.sdk",
   "promptshield.cli",
-  "promptshield.redteam"
+  "promptshield.redteam",
+  "promptshield.modelscan"
 ]
 
 [tool.setuptools.package-data]

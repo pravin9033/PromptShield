@@ -18,17 +18,24 @@ from promptshield import scan_messages, scan_prompt
 app = typer.Typer(add_completion=False)
 
 
-try:
-    from promptshield.cli.redteam import app as redteam_app
+def _register_optional(app: typer.Typer, name: str, importer: str, message: str) -> None:
+    try:
+        module_path, attr = importer.split(":")
+        module = __import__(module_path, fromlist=[attr])
+        sub_app = getattr(module, attr)
+        app.add_typer(sub_app, name=name)
+    except ImportError:
 
-    app.add_typer(redteam_app, name="redteam")
-except ImportError:
+        @app.command(name)
+        def _unavailable() -> None:
+            """Placeholder when optional extras are not installed."""
+            typer.echo(message)
+            raise typer.Exit(code=1)
 
-    @app.command("redteam")
-    def redteam_unavailable() -> None:
-        """Placeholder when red-team extras are not installed."""
-        typer.echo("Red-team commands require promptshield[redteam].")
-        raise typer.Exit(code=1)
+
+_register_optional(app, "redteam", "promptshield.cli.redteam:app", "Red-team commands require promptshield[redteam].")
+_register_optional(app, "compliance", "promptshield.cli.compliance:app", "Compliance commands require promptshield[compliance].")
+_register_optional(app, "modelscan", "promptshield.cli.modelscan:app", "Model scan commands require promptshield[modelscan].")
 
 
 def _format_result(result) -> str:
