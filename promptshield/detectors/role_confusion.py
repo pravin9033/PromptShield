@@ -3,43 +3,22 @@
 from __future__ import annotations
 
 import re
-from typing import List, Optional
+from typing import Optional
 
+from ..engine.context import PromptContext, build_context
+from ..engine.registry import DetectorSpec
+from ..engine.types import RiskCategory, MessageSequence
 from ..engine.verdict import DetectorResult
+from .patterns import find_matches, load_pattern_set
 
-CATEGORY = "ROLE_CONFUSION"
+CATEGORY = RiskCategory.ROLE_CONFUSION.value
 NAME = "role_confusion"
 
-ROLE_TAG_PATTERNS = [
-    r"^(system|assistant|developer|tool)\s*:",
-    r"<\s*(system|assistant|developer|tool)\s*>",
-    r"\[(system|assistant|developer|tool)\]",
-]
 
-ROLE_CLAIM_PATTERNS = [
-    r"\bI am the system\b",
-    r"\bI am the assistant\b",
-    r"\bact as the system\b",
-    r"\bpretend to be the system\b",
-]
-
-
-def _combine(prompt: str, system_prompt: Optional[str]) -> str:
-    return "\n".join([chunk for chunk in [system_prompt, prompt] if chunk])
-
-
-def _find_matches(text: str, patterns: List[str]) -> List[str]:
-    hits: List[str] = []
-    for pattern in patterns:
-        if re.search(pattern, text, flags=re.IGNORECASE | re.MULTILINE):
-            hits.append(pattern)
-    return hits
-
-
-def detect_role_confusion(prompt: str, system_prompt: Optional[str] = None) -> DetectorResult:
-    text = _combine(prompt, system_prompt)
-    tag_hits = _find_matches(text, ROLE_TAG_PATTERNS)
-    claim_hits = _find_matches(text, ROLE_CLAIM_PATTERNS)
+def detect_role_confusion_context(context: PromptContext) -> DetectorResult:
+    patterns = load_pattern_set("role_confusion", flags=re.IGNORECASE | re.MULTILINE)
+    tag_hits = find_matches(context.combined_text, patterns.critical)
+    claim_hits = find_matches(context.combined_text, patterns.soft)
     matches = tag_hits + claim_hits
 
     if not matches:
@@ -64,3 +43,16 @@ def detect_role_confusion(prompt: str, system_prompt: Optional[str] = None) -> D
         explanation="User content attempts to impersonate system or assistant roles",
         matches=matches,
     )
+
+
+def detect_role_confusion(
+    prompt: str,
+    system_prompt: Optional[str] = None,
+    messages: Optional[MessageSequence] = None,
+) -> DetectorResult:
+    context = build_context(prompt=prompt, system_prompt=system_prompt, messages=messages)
+    return detect_role_confusion_context(context)
+
+
+def get_detector() -> DetectorSpec:
+    return DetectorSpec(name=NAME, category=RiskCategory.ROLE_CONFUSION, detect=detect_role_confusion_context)

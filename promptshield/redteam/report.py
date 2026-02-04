@@ -39,6 +39,7 @@ def _render_json(run: RedTeamRun) -> Dict[str, object]:
             "version": run.pack.version,
             "description": run.pack.description,
             "source_path": str(run.pack.source_path),
+            "metadata": run.pack.metadata,
         },
         "threshold": run.threshold,
         "started_at": run.started_at.isoformat(),
@@ -49,6 +50,12 @@ def _render_json(run: RedTeamRun) -> Dict[str, object]:
                 "id": result.case.attack_id,
                 "category": result.case.category or result.scan.category,
                 "prompt": result.case.prompt,
+                "messages": [
+                    {"role": message.role, "content": message.content}
+                    for message in result.case.messages
+                ]
+                if result.case.messages
+                else None,
                 "system_prompt": result.system_prompt,
                 "block": result.block,
                 "risk_score": result.scan.risk_score,
@@ -56,6 +63,7 @@ def _render_json(run: RedTeamRun) -> Dict[str, object]:
                 "explanation": result.scan.explanation,
                 "expect_block": result.case.expect_block,
                 "matched_expected": result.matched_expected,
+                "metadata": result.case.metadata,
                 "signals": [
                     {
                         "name": signal.name,
@@ -107,11 +115,20 @@ def _render_markdown(run: RedTeamRun) -> str:
         if result.system_prompt:
             lines.append("- System prompt override: yes")
         lines.append("")
-        lines.append("Prompt:")
-        lines.append("")
-        lines.append("```text")
-        lines.append(result.case.prompt)
-        lines.append("```")
+
+        if result.case.messages:
+            lines.append("Messages:")
+            lines.append("")
+            lines.append("```text")
+            for message in result.case.messages:
+                lines.append(f"[{message.role.upper()}] {message.content}")
+            lines.append("```")
+        else:
+            lines.append("Prompt:")
+            lines.append("")
+            lines.append("```text")
+            lines.append(result.case.prompt or "")
+            lines.append("```")
         lines.append("")
 
     return "\n".join(lines)
@@ -120,12 +137,23 @@ def _render_markdown(run: RedTeamRun) -> str:
 def _render_repro_script(run: RedTeamRun) -> str:
     lines: List[str] = ["#!/usr/bin/env bash", "set -euo pipefail", ""]
     for result in run.results:
-        prompt = shlex.quote(result.case.prompt)
-        if result.system_prompt:
-            system_prompt = shlex.quote(result.system_prompt)
-            line = f"promptshield scan --system {system_prompt} {prompt}"
+        if result.case.messages:
+            payload = json.dumps(
+                [{"role": msg.role, "content": msg.content} for msg in result.case.messages]
+            )
+            payload_arg = shlex.quote(payload)
+            if result.system_prompt:
+                system_prompt = shlex.quote(result.system_prompt)
+                line = f"promptshield scan --system {system_prompt} --messages {payload_arg}"
+            else:
+                line = f"promptshield scan --messages {payload_arg}"
         else:
-            line = f"promptshield scan {prompt}"
+            prompt = shlex.quote(result.case.prompt or "")
+            if result.system_prompt:
+                system_prompt = shlex.quote(result.system_prompt)
+                line = f"promptshield scan --system {system_prompt} {prompt}"
+            else:
+                line = f"promptshield scan {prompt}"
         lines.append(line)
     lines.append("")
     return "\n".join(lines)
@@ -144,7 +172,10 @@ def write_reports(run: RedTeamRun, reports_dir: str = "reports") -> ReportPaths:
     json_path.write_text(json.dumps(json_payload, indent=2), encoding="utf-8")
     markdown_path.write_text(_render_markdown(run), encoding="utf-8")
     repro_script_path.write_text(_render_repro_script(run), encoding="utf-8")
-    repro_script_path.chmod(0o755)
+    try:
+        repro_script_path.chmod(0o755)
+    except OSError:
+        pass
 
     return ReportPaths(
         json_path=json_path,

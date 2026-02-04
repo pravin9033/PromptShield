@@ -3,46 +3,22 @@
 from __future__ import annotations
 
 import re
-from typing import List, Optional
+from typing import Optional
 
+from ..engine.context import PromptContext, build_context
+from ..engine.registry import DetectorSpec
+from ..engine.types import RiskCategory, MessageSequence
 from ..engine.verdict import DetectorResult
+from .patterns import find_matches, load_pattern_set
 
-CATEGORY = "PROMPT_INJECTION"
+CATEGORY = RiskCategory.PROMPT_INJECTION.value
 NAME = "prompt_injection"
 
-CRITICAL_PATTERNS = [
-    r"\bignore (all |the )?previous instructions\b",
-    r"\bdisregard (all |the )?instructions\b",
-    r"\bsystem override\b",
-    r"\boverride (the )?system\b",
-    r"\bdeveloper message\b",
-]
 
-SOFT_PATTERNS = [
-    r"\byou are now\b",
-    r"\bforget (everything|the above)\b",
-    r"\bnew instructions\b",
-    r"\bact as (the )?system\b",
-    r"\bignore the system prompt\b",
-]
-
-
-def _combine(prompt: str, system_prompt: Optional[str]) -> str:
-    return "\n".join([chunk for chunk in [system_prompt, prompt] if chunk])
-
-
-def _find_matches(text: str, patterns: List[str]) -> List[str]:
-    hits: List[str] = []
-    for pattern in patterns:
-        if re.search(pattern, text, flags=re.IGNORECASE):
-            hits.append(pattern)
-    return hits
-
-
-def detect_injection(prompt: str, system_prompt: Optional[str] = None) -> DetectorResult:
-    text = _combine(prompt, system_prompt)
-    critical_hits = _find_matches(text, CRITICAL_PATTERNS)
-    soft_hits = _find_matches(text, SOFT_PATTERNS)
+def detect_injection_context(context: PromptContext) -> DetectorResult:
+    patterns = load_pattern_set("prompt_injection", flags=re.IGNORECASE)
+    critical_hits = find_matches(context.combined_text, patterns.critical)
+    soft_hits = find_matches(context.combined_text, patterns.soft)
     matches = critical_hits + soft_hits
 
     if not matches:
@@ -67,3 +43,16 @@ def detect_injection(prompt: str, system_prompt: Optional[str] = None) -> Detect
         explanation="Attempt to override system instructions",
         matches=matches,
     )
+
+
+def detect_injection(
+    prompt: str,
+    system_prompt: Optional[str] = None,
+    messages: Optional[MessageSequence] = None,
+) -> DetectorResult:
+    context = build_context(prompt=prompt, system_prompt=system_prompt, messages=messages)
+    return detect_injection_context(context)
+
+
+def get_detector() -> DetectorSpec:
+    return DetectorSpec(name=NAME, category=RiskCategory.PROMPT_INJECTION, detect=detect_injection_context)

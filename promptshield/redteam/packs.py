@@ -6,17 +6,23 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from promptshield.engine.context import normalize_messages
+from promptshield.engine.types import Message
+
 from .schema import validate_attack_pack_data
+
 
 @dataclass(frozen=True)
 class AttackCase:
     attack_id: str
-    prompt: str
+    prompt: Optional[str] = None
     system_prompt: Optional[str] = None
+    messages: List[Message] = field(default_factory=list)
     category: Optional[str] = None
     tags: List[str] = field(default_factory=list)
     expect_block: Optional[bool] = None
     notes: Optional[str] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -26,6 +32,7 @@ class AttackPack:
     description: str
     attacks: List[AttackCase]
     source_path: Path
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 def _load_yaml(path: Path) -> Dict[str, Any]:
@@ -33,7 +40,7 @@ def _load_yaml(path: Path) -> Dict[str, Any]:
         import yaml
     except ImportError as exc:  # pragma: no cover - optional dependency
         raise ImportError(
-            "PyYAML is required for attack packs. Install with: pip install pyyaml"
+            "PyYAML is required for attack packs. Install with: pip install promptshield[redteam]"
         ) from exc
 
     with path.open("r", encoding="utf-8") as handle:
@@ -57,6 +64,7 @@ def load_attack_pack(path_str: str) -> AttackPack:
     name = str(data.get("name", "unnamed-pack"))
     version = str(data.get("version", "0.1"))
     description = str(data.get("description", ""))
+    metadata = dict(data.get("metadata", {}) or {})
 
     attacks_raw = data.get("attacks", [])
     if not isinstance(attacks_raw, list):
@@ -68,17 +76,21 @@ def load_attack_pack(path_str: str) -> AttackPack:
             raise ValueError(f"attack #{idx} must be a mapping")
         attack_id = str(item.get("id", f"attack-{idx}"))
         prompt = item.get("prompt")
-        if not prompt:
-            raise ValueError(f"attack #{idx} missing prompt")
+        messages_raw = item.get("messages") or []
+        messages = normalize_messages(messages_raw)
+        if not prompt and not messages:
+            raise ValueError(f"attack #{idx} missing prompt or messages")
         attacks.append(
             AttackCase(
                 attack_id=attack_id,
-                prompt=str(prompt),
+                prompt=str(prompt) if prompt else None,
                 system_prompt=item.get("system_prompt"),
+                messages=messages,
                 category=item.get("category"),
                 tags=list(item.get("tags", []) or []),
                 expect_block=item.get("expect_block"),
                 notes=item.get("notes"),
+                metadata=dict(item.get("metadata", {}) or {}),
             )
         )
 
@@ -88,4 +100,5 @@ def load_attack_pack(path_str: str) -> AttackPack:
         description=description,
         attacks=attacks,
         source_path=path,
+        metadata=metadata,
     )

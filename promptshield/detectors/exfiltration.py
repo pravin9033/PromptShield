@@ -3,49 +3,22 @@
 from __future__ import annotations
 
 import re
-from typing import List, Optional
+from typing import Optional
 
+from ..engine.context import PromptContext, build_context
+from ..engine.registry import DetectorSpec
+from ..engine.types import RiskCategory, MessageSequence
 from ..engine.verdict import DetectorResult
+from .patterns import find_matches, load_pattern_set
 
-CATEGORY = "DATA_EXFILTRATION"
+CATEGORY = RiskCategory.DATA_EXFILTRATION.value
 NAME = "data_exfiltration"
 
-CRITICAL_PATTERNS = [
-    r"\bapi key\b",
-    r"\bsecret key\b",
-    r"\baccess token\b",
-    r"\bpassword\b",
-    r"\bssh key\b",
-]
 
-SOFT_PATTERNS = [
-    r"\bsecrets?\b",
-    r"\bcredentials?\b",
-    r"\benvironment variables?\b",
-    r"\benv vars?\b",
-    r"\bsystem prompt\b",
-    r"\btraining data\b",
-    r"\bmodel weights\b",
-    r"\bprivate data\b",
-]
-
-
-def _combine(prompt: str, system_prompt: Optional[str]) -> str:
-    return "\n".join([chunk for chunk in [system_prompt, prompt] if chunk])
-
-
-def _find_matches(text: str, patterns: List[str]) -> List[str]:
-    hits: List[str] = []
-    for pattern in patterns:
-        if re.search(pattern, text, flags=re.IGNORECASE):
-            hits.append(pattern)
-    return hits
-
-
-def detect_exfiltration(prompt: str, system_prompt: Optional[str] = None) -> DetectorResult:
-    text = _combine(prompt, system_prompt)
-    critical_hits = _find_matches(text, CRITICAL_PATTERNS)
-    soft_hits = _find_matches(text, SOFT_PATTERNS)
+def detect_exfiltration_context(context: PromptContext) -> DetectorResult:
+    patterns = load_pattern_set("exfiltration", flags=re.IGNORECASE)
+    critical_hits = find_matches(context.combined_text, patterns.critical)
+    soft_hits = find_matches(context.combined_text, patterns.soft)
     matches = critical_hits + soft_hits
 
     if not matches:
@@ -70,3 +43,16 @@ def detect_exfiltration(prompt: str, system_prompt: Optional[str] = None) -> Det
         explanation="Prompt requests sensitive or restricted data",
         matches=matches,
     )
+
+
+def detect_exfiltration(
+    prompt: str,
+    system_prompt: Optional[str] = None,
+    messages: Optional[MessageSequence] = None,
+) -> DetectorResult:
+    context = build_context(prompt=prompt, system_prompt=system_prompt, messages=messages)
+    return detect_exfiltration_context(context)
+
+
+def get_detector() -> DetectorSpec:
+    return DetectorSpec(name=NAME, category=RiskCategory.DATA_EXFILTRATION, detect=detect_exfiltration_context)

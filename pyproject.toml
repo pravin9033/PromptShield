@@ -23,10 +23,18 @@ classifiers = [
   "Topic :: Security",
   "Topic :: Software Development :: Libraries"
 ]
-dependencies = [
+dependencies = []
+
+[project.optional-dependencies]
+cli = ["typer>=0.12.0"]
+redteam = ["PyYAML>=6.0", "jsonschema>=4.21.0"]
+middleware = ["starlette>=0.37.0"]
+test = ["pytest>=7.4", "pytest-cov>=4.1"]
+all = [
   "typer>=0.12.0",
   "PyYAML>=6.0",
-  "jsonschema>=4.21.0"
+  "jsonschema>=4.21.0",
+  "starlette>=0.37.0"
 ]
 
 [project.urls]
@@ -35,9 +43,17 @@ Homepage = "https://github.com/pravin9033/prompt-shield"
 [project.scripts]
 promptshield = "promptshield.cli.main:main"
 
+[project.entry-points."promptshield.detectors"]
+prompt_injection = "promptshield.detectors.injection:get_detector"
+jailbreak = "promptshield.detectors.jailbreak:get_detector"
+role_confusion = "promptshield.detectors.role_confusion:get_detector"
+data_exfiltration = "promptshield.detectors.exfiltration:get_detector"
+
 [tool.setuptools]
 packages = [
   "promptshield",
+  "promptshield.data",
+  "promptshield.data.patterns",
   "promptshield.engine",
   "promptshield.detectors",
   "promptshield.sdk",
@@ -47,3 +63,4 @@ packages = [
 
 [tool.setuptools.package-data]
 "promptshield.redteam" = ["schema.json"]
+"promptshield.data.patterns" = ["*.json"]

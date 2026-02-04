@@ -1,0 +1,20 @@
+{
+  "name": "jailbreak",
+  "category": "JAILBREAK",
+  "critical": [
+    "\\bDAN\\b",
+    "\\bdo anything now\\b",
+    "\\bdeveloper mode\\b",
+    "\\buncensored\\b"
+  ],
+  "soft": [
+    "\\bjailbreak\\b",
+    "\\bno restrictions\\b",
+    "\\bbypass (all )?safety\\b",
+    "\\bpretend (you are|to be)\\b",
+    "\\brole ?play\\b",
+    "\\bbase64\\b",
+    "\\brot13\\b",
+    "\\b(encode|decode)\\b"
+  ]
+}

@@ -6,7 +6,12 @@ import json
 from importlib import resources
 from typing import Any, Dict, List
 
-from jsonschema import Draft202012Validator
+try:
+    from jsonschema import Draft202012Validator
+except ImportError as exc:  # pragma: no cover - optional dependency
+    raise ImportError(
+        "jsonschema is required for pack validation. Install with: pip install promptshield[redteam]"
+    ) from exc
 
 
 def _load_schema() -> Dict[str, Any]:

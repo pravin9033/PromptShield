@@ -1,0 +1,21 @@
+{
+  "name": "data_exfiltration",
+  "category": "DATA_EXFILTRATION",
+  "critical": [
+    "\\bapi key\\b",
+    "\\bsecret key\\b",
+    "\\baccess token\\b",
+    "\\bpassword\\b",
+    "\\bssh key\\b"
+  ],
+  "soft": [
+    "\\bsecrets?\\b",
+    "\\bcredentials?\\b",
+    "\\benvironment variables?\\b",
+    "\\benv vars?\\b",
+    "\\bsystem prompt\\b",
+    "\\btraining data\\b",
+    "\\bmodel weights\\b",
+    "\\bprivate data\\b"
+  ]
+}

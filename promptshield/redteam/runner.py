@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
+from promptshield import PromptShieldEngine
 from promptshield.engine.verdict import ScanResult
-from promptshield import scan_prompt
 
 from .packs import AttackCase, AttackPack
 
@@ -34,13 +34,22 @@ def run_attack_pack(
     pack: AttackPack,
     threshold: int = 70,
     system_prompt: Optional[str] = None,
+    engine: Optional[PromptShieldEngine] = None,
 ) -> RedTeamRun:
     started_at = datetime.now(timezone.utc)
     results: List[AttackOutcome] = []
 
+    engine = engine or PromptShieldEngine()
+
     for case in pack.attacks:
         run_system_prompt = system_prompt if system_prompt is not None else case.system_prompt
-        scan = scan_prompt(prompt=case.prompt, system_prompt=run_system_prompt)
+        if case.messages:
+            messages = list(case.messages)
+            if case.prompt:
+                messages.append({"role": "user", "content": case.prompt})
+            scan = engine.scan_messages(messages=messages, system_prompt=run_system_prompt)
+        else:
+            scan = engine.scan(prompt=case.prompt, system_prompt=run_system_prompt)
         block = scan.risk_score >= threshold
         if case.expect_block is None:
             matched_expected = None

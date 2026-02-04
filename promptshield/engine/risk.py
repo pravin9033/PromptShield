@@ -2,34 +2,25 @@
 
 from __future__ import annotations
 
-from typing import Iterable, Tuple
+from typing import Dict, Iterable, Tuple
 
 from .verdict import DetectorResult
 
-WEIGHTS = {
-    "PROMPT_INJECTION": 0.4,
-    "JAILBREAK": 0.3,
-    "ROLE_CONFUSION": 0.2,
-    "DATA_EXFILTRATION": 0.1,
-}
 
-THRESHOLDS = {
-    "allow": 40,
-    "warn": 69,
-    "block": 70,
-}
-
-
-def aggregate_risk(results: Iterable[DetectorResult]) -> Tuple[int, str, float, str]:
+def aggregate_risk(
+    results: Iterable[DetectorResult],
+    weights: Dict[str, float],
+    boost_threshold: float = 0.85,
+) -> Tuple[int, str, float, str]:
     """Aggregate detector results into a single risk score and top explanation."""
     weighted_score = 0.0
     top_result: DetectorResult | None = None
     top_weighted = -1.0
 
     for result in results:
-        weight = WEIGHTS.get(result.category, 0.0)
+        weight = weights.get(result.category, 0.0)
         weighted_score += result.score * weight
-        if result.score <= 0:
+        if result.score <= 0 or weight <= 0:
             continue
         weighted_value = result.score * weight
         if weighted_value > top_weighted:
@@ -38,7 +29,7 @@ def aggregate_risk(results: Iterable[DetectorResult]) -> Tuple[int, str, float, 
 
     risk_score = int(round(min(1.0, weighted_score) * 100))
 
-    if top_result is not None and top_result.score >= 0.85:
+    if top_result is not None and top_result.score >= boost_threshold:
         boosted = int(round(min(1.0, top_result.score) * 100))
         risk_score = max(risk_score, boosted)
 
