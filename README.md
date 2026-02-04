@@ -67,6 +67,30 @@ JSON output:
 promptshield scan "DAN: do anything now" --json
 ```
 
+## Red-team CLI
+
+Run attack packs and generate reports:
+
+```bash
+promptshield redteam run attacks/packs/starter.yaml
+```
+
+Reports are written to `reports/` as JSON, Markdown, and a repro script.
+
+Available packs (examples):
+
+- `attacks/packs/starter.yaml`
+- `attacks/packs/advanced.yaml`
+- `attacks/packs/role_confusion.yaml`
+- `attacks/packs/exfiltration.yaml`
+- `attacks/packs/benign.yaml`
+
+Validate pack metadata with the schema:
+
+```bash
+promptshield redteam lint attacks/packs/starter.yaml
+```
+
 ## FastAPI middleware
 
 ```python
@@ -109,6 +133,7 @@ High-confidence single detections are boosted to avoid false negatives on obviou
 ## Project structure
 
 - `promptshield/` core package
+- `promptshield/redteam/` attack packs + reporting
 - `attacks/` curated test prompts
 - `examples/` reference integrations
 

@@ -1,0 +1,8 @@
+repos:
+  - repo: local
+    hooks:
+      - id: promptshield-pack-lint
+        name: PromptShield pack lint
+        entry: python -m promptshield.cli.main redteam lint
+        language: system
+        files: ^attacks/packs/.*\.ya?ml$

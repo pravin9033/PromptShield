@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
-import argparse
 import json
 import sys
-from typing import Any, Dict
+from typing import Any, Dict, Optional
+
+import typer
 
 from promptshield import scan_prompt
+from promptshield.cli.redteam import app as redteam_app
+
+app = typer.Typer(add_completion=False)
+app.add_typer(redteam_app, name="redteam")
 
 
 def _format_result(result) -> str:
@@ -48,26 +53,26 @@ def _read_stdin() -> str:
     return data.strip()
 
 
+@app.command()
+def scan(
+    prompt: Optional[str] = typer.Argument(None, help="Prompt text (defaults to stdin)"),
+    system_prompt: Optional[str] = typer.Option(None, "--system", help="Optional system prompt"),
+    json_output: bool = typer.Option(False, "--json", help="Output JSON"),
+) -> None:
+    """Scan a prompt for injection or jailbreak signals."""
+    prompt_value = prompt or _read_stdin()
+    if not prompt_value:
+        raise typer.BadParameter("prompt is required (pass as arg or via stdin)")
+
+    result = scan_prompt(prompt=prompt_value, system_prompt=system_prompt)
+    if json_output:
+        typer.echo(json.dumps(_result_to_dict(result), indent=2))
+    else:
+        typer.echo(_format_result(result))
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(prog="promptshield")
-    subparsers = parser.add_subparsers(dest="command", required=True)
-
-    scan_parser = subparsers.add_parser("scan", help="Scan a prompt")
-    scan_parser.add_argument("prompt", nargs="?", help="Prompt text (defaults to stdin)")
-    scan_parser.add_argument("--system", dest="system_prompt", help="Optional system prompt")
-    scan_parser.add_argument("--json", action="store_true", help="Output JSON")
-
-    args = parser.parse_args()
-
-    if args.command == "scan":
-        prompt = args.prompt or _read_stdin()
-        if not prompt:
-            parser.error("prompt is required (pass as arg or via stdin)")
-        result = scan_prompt(prompt=prompt, system_prompt=args.system_prompt)
-        if args.json:
-            print(json.dumps(_result_to_dict(result), indent=2))
-        else:
-            print(_format_result(result))
+    app()
 
 
 if __name__ == "__main__":
